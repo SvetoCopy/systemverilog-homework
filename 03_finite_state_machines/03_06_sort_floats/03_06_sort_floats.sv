@@ -73,6 +73,61 @@ module sort_three_floats (
     output logic [0:2][FLEN - 1:0] sorted,
     output                         err
 );
+    logic u0_less_or_equal_u1;
+    logic u0_less_or_equal_u2;
+    logic u1_less_or_equal_u2;
+
+    logic err_a, err_b, err_c;
+
+    f_less_or_equal i_floe_01
+    (
+        .a   ( unsorted [0]        ),
+        .b   ( unsorted [1]        ),
+        .res ( u0_less_or_equal_u1 ),
+        .err ( err_a                 )
+    );
+
+    f_less_or_equal i_floe_02
+    (
+        .a   ( unsorted [0]        ),
+        .b   ( unsorted [2]        ),
+        .res ( u0_less_or_equal_u2 ),
+        .err ( err_b                 )
+    );
+
+    f_less_or_equal i_floe_03
+    (
+        .a   ( unsorted [1]        ),
+        .b   ( unsorted [2]        ),
+        .res ( u1_less_or_equal_u2 ),
+        .err ( err_c                 )
+    );
+
+    always_comb
+        if (u0_less_or_equal_u1)
+            if (u1_less_or_equal_u2)
+                sorted = unsorted;
+            else
+                if (u0_less_or_equal_u2)
+                    {   sorted [0],   sorted [1],   sorted [2]}
+                  = { unsorted [0], unsorted [2], unsorted [1]};
+                else
+                    {   sorted [0],   sorted [1],   sorted [2]}
+                  = { unsorted [2], unsorted [0], unsorted [1]};
+        else // 0 > 1
+            if (u1_less_or_equal_u2) // 0, 2 > 1 
+                if (u0_less_or_equal_u2)
+                    {   sorted [0],   sorted [1],   sorted [2]}
+                  = { unsorted [1], unsorted [0], unsorted [2]};
+                else
+                    {   sorted [0],   sorted [1],   sorted [2]}
+                  = { unsorted [1], unsorted [2], unsorted [0]};
+            else // 0 > 1 > 2
+                {   sorted [0],   sorted [1],   sorted [2]}
+              = { unsorted [2], unsorted [1], unsorted [0]};
+    
+    assign err = err_a | err_b | err_c;
+
 
     // Task:
     // Implement a module that accepts three Floating-Point numbers and outputs them in the increasing order.
