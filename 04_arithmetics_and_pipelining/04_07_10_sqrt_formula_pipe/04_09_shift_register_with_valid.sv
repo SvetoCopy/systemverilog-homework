@@ -49,10 +49,6 @@ module shift_register
 
 endmodule
 
-//----------------------------------------------------------------------------
-// Task
-//----------------------------------------------------------------------------
-
 module shift_register_with_valid
 # (
     parameter width = 8, depth = 8
@@ -68,15 +64,27 @@ module shift_register_with_valid
     output [width - 1:0] out_data
 );
 
-    // Task:
-    //
-    // Implement a variant of a shift register module
-    // that moves a transfer of data only if this transfer is valid.
-    //
-    // For the discussion of shift registers
-    // see the article by Yuri Panchul published in
-    // FPGA-Systems Magazine :: FSM :: Issue ALFA (state_0)
-    // You can download this issue from https://fpga-systems.ru/fsm#state_0
+    logic [width-1:0] data [0:depth-1];
+    logic [depth-1:0] valid;
 
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            for (int i = 0; i < depth; i++) begin
+                data[i] <= '0;
+                valid[i] <= 1'b0;
+            end
+        end else begin
+            for (int i = depth - 1; i > 0; i--) begin
+                data[i] <= data[i-1];
+                valid[i] <= valid[i-1];
+            end
+
+            data[0] <= in_data;
+            valid[0] <= in_vld;
+        end
+    end
+
+    assign out_vld = valid[depth-1];
+    assign out_data = data[depth-1];
 
 endmodule

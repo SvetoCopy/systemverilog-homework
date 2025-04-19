@@ -1,7 +1,3 @@
-//----------------------------------------------------------------------------
-// Task
-//----------------------------------------------------------------------------
-
 module formula_1_pipe_aware_fsm
 (
     input               clk,
@@ -15,8 +11,6 @@ module formula_1_pipe_aware_fsm
     output logic        res_vld,
     output logic [31:0] res,
 
-    // isqrt interface
-
     output logic        isqrt_x_vld,
     output logic [31:0] isqrt_x,
 
@@ -24,42 +18,78 @@ module formula_1_pipe_aware_fsm
     input        [15:0] isqrt_y
 );
 
-    // Task:
-    //
-    // Implement a module formula_1_pipe_aware_fsm
-    // with a Finite State Machine (FSM)
-    // that drives the inputs and consumes the outputs
-    // of a single pipelined module isqrt.
-    //
-    // The formula_1_pipe_aware_fsm module is supposed to be instantiated
-    // inside the module formula_1_pipe_aware_fsm_top,
-    // together with a single instance of isqrt.
-    //
-    // The resulting structure has to compute the formula
-    // defined in the file formula_1_fn.svh.
-    //
-    // The formula_1_pipe_aware_fsm module
-    // should NOT create any instances of isqrt module,
-    // it should only use the input and output ports connecting
-    // to the instance of isqrt at higher level of the instance hierarchy.
-    //
-    // All the datapath computations except the square root calculation,
-    // should be implemented inside formula_1_pipe_aware_fsm module.
-    // So this module is not a state machine only, it is a combination
-    // of an FSM with a datapath for additions and the intermediate data
-    // registers.
-    //
-    // Note that the module formula_1_pipe_aware_fsm is NOT pipelined itself.
-    // It should be able to accept new arguments a, b and c
-    // arriving at every N+3 clock cycles.
-    //
-    // In order to achieve this latency the FSM is supposed to use the fact
-    // that isqrt is a pipelined module.
-    //
-    // For more details, see the discussion of this problem
-    // in the article by Yuri Panchul published in
-    // FPGA-Systems Magazine :: FSM :: Issue ALFA (state_0)
-    // You can download this issue from https://fpga-systems.ru/fsm#state_0
+    typedef enum logic [1:0] {
+        IDLE,
+        SEND_A,
+        SEND_B,
+        SEND_C
+    } state_t;
 
+    state_t state, next_state;
+
+    logic [7:0] pending [0:7];
+    logic [2:0] wr_ptr, rd_ptr;
+    logic [31:0] sum_buffer [0:7];
+    logic [2:0] cnt_buffer [0:7];
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            state <= IDLE;
+            wr_ptr <= 0;
+            rd_ptr <= 0;
+            for (int i = 0; i < 8; i++) begin
+                pending[i] <= 0;
+                sum_buffer[i] <= 0;
+                cnt_buffer[i] <= 0;
+            end
+            res_vld <= 0;
+            res <= 0;
+        end else begin
+            state <= next_state;
+
+            if (isqrt_y_vld) begin
+                if (pending[rd_ptr] > 0) begin
+                    sum_buffer[rd_ptr] <= sum_buffer[rd_ptr] + {16'b0, isqrt_y};
+                    cnt_buffer[rd_ptr] <= cnt_buffer[rd_ptr] + 1;
+                    if (cnt_buffer[rd_ptr] + 1 == 3) begin
+                        res_vld <= 1;
+                        res <= sum_buffer[rd_ptr] + {16'b0, isqrt_y};
+                        pending[rd_ptr] <= 0;
+                        rd_ptr <= rd_ptr + 1;
+                    end else begin
+                        pending[rd_ptr] <= pending[rd_ptr] - 1;
+                    end
+                end
+            end else begin
+                res_vld <= 0;
+            end
+
+            if (arg_vld && state == IDLE) begin
+                pending[wr_ptr] <= 3;
+                sum_buffer[wr_ptr] <= 0;
+                cnt_buffer[wr_ptr] <= 0;
+                wr_ptr <= wr_ptr + 1;
+            end
+        end
+    end
+
+    always_comb begin
+        next_state = state;
+        case (state)
+            IDLE: begin
+                if (arg_vld) begin
+                    next_state = SEND_A;
+                end
+            end
+            SEND_A: next_state = SEND_B;
+            SEND_B: next_state = SEND_C;
+            SEND_C: next_state = IDLE;
+        endcase
+    end
+
+    assign isqrt_x_vld = (state == SEND_A) || (state == SEND_B) || (state == SEND_C);
+    assign isqrt_x = (state == SEND_A) ? a :
+                     (state == SEND_B) ? b :
+                     (state == SEND_C) ? c : '0;
 
 endmodule

@@ -15,7 +15,6 @@ endmodule
 //----------------------------------------------------------------------------
 // Task
 //----------------------------------------------------------------------------
-
 module signed_add_with_overflow
 (
   input  [3:0] a, b,
@@ -23,18 +22,7 @@ module signed_add_with_overflow
   output       overflow
 );
 
-  // Task:
-  //
-  // Implement a module that adds two signed numbers
-  // and detects an overflow.
-  //
-  // By "signed" we mean "two's complement numbers".
-  // See https://en.wikipedia.org/wiki/Two%27s_complement for details.
-  //
-  // The 'overflow' output bit should be set to 1
-  // when the sum (either positive or negative)
-  // of two input arguments does not fit into 4 bits.
-  // Otherwise the 'overflow' should be set to 0.
-
+  assign sum = a + b;
+  assign overflow = (a[3] == b[3]) && (sum[3] != a[3]);
 
 endmodule

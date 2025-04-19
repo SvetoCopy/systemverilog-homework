@@ -42,15 +42,31 @@ endmodule
 // Implement a parameterized module
 // that produces either signed or unsigned result
 // of the multiplication depending on the 'signed_mul' input bit.
-
 module signed_or_unsigned_mul
 # (
   parameter n = 8
 )
 (
-  input  [    n - 1:0] a, b,
-  input                signed_mul,
-  output [2 * n - 1:0] res
+  input  logic [n-1:0] a, b,
+  input  logic         signed_mul,
+  output logic [2*n-1:0] res
 );
+
+  logic signed [n-1:0] a_signed, b_signed;
+  logic [2*n-1:0] unsigned_res;
+  logic signed [2*n-1:0] signed_res;
+
+  assign a_signed = a;
+  assign b_signed = b;
+
+  assign unsigned_res = a * b;
+  assign signed_res   = a_signed * b_signed;
+
+  always_comb begin
+    if (signed_mul)
+      res = signed_res;
+    else
+      res = unsigned_res;
+  end
 
 endmodule
